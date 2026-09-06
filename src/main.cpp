@@ -130,6 +130,7 @@ node* tree(std::vector<Token> toks){
             
         }
     }
+    return NULL;
 }
 
 ///
@@ -177,7 +178,8 @@ int main(int argc, char* argv[]){
     }
 
     // Close the file
-    MyReadFile.close();
+    
+    
     //std::cout << myText << std::endl;
 
     std::string input = "hello world this is C++";
@@ -188,13 +190,17 @@ int main(int argc, char* argv[]){
     for (const std::string& token : result) {
         std::cout << token << '\n';
     }
+std::cout << "myText = [" << myText << "]\n";
 
-    {
-        std::ofstream uh("lol.asm");
-        uh << asmp(Tokenizer(myText));
-        uh.close();
-    }
+auto tokens = Tokenizer(myText);
 
+std::cout << "tokens = " << tokens.size() << '\n';
+
+{
+    std::ofstream uh("lol.asm");
+    uh << asmp(tokens);
+}
+    MyReadFile.close();
     std::string filename = "lol.asm";
     
     // Construct the command string
