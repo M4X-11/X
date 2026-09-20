@@ -14,7 +14,11 @@ enum class TokenType {
     plus,
     minus,
     mul,
-    div
+    div,
+    eckig_start,
+    ecking_end,
+    less_than,
+    more_than
 };
 
 int binding_power(TokenType t) {
@@ -207,6 +211,18 @@ std::vector<Token> Tokenizer(std::string tok){
         else if (c == ';'){
             tokens.push_back({.type = TokenType::semi});
         }
+        else if (c == '['){
+            tokens.push_back({.type = TokenType::eckig_start});
+        }
+        else if (c == ']'){
+            tokens.push_back({.type = TokenType::ecking_end});
+        }
+        else if (c == '<'){
+            tokens.push_back({.type = TokenType::less_than});
+        }
+        else if (c == '>'){
+            tokens.push_back({.type = TokenType::more_than});
+        }
         else if (std::isspace(c)){
             continue;
         }
@@ -285,6 +301,7 @@ int main(int argc, char* argv[]){
     //read
     // Create a text string, which is used to output the text file
     std::string myText;
+    std::stringstream buf;
 
     // Read from the text file
     std::ifstream MyReadFile(argv[1]);
@@ -298,6 +315,11 @@ int main(int argc, char* argv[]){
     while (getline (MyReadFile, myText)) {
     // Output the text from the file
     //std::cout << myText;
+    if (!myText.empty() && myText.front() == '/') {
+        continue;
+    }
+    std::cout << myText;
+    buf << myText;
     }
 
     // Close the file
@@ -329,6 +351,10 @@ std::cout << "tokens = " << tokens.size() << '\n';
     std::system(command.c_str());
 
     std::system("ld -o out lol.o");
+
+    auto tokenr = Tokenizer("return []]3+2;");
+
+    std::cout << tokenr.size() << '\n';
 
     return 0;
 }
