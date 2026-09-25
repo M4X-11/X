@@ -28,7 +28,8 @@ enum class TokenType {
     eckig_start,
     ecking_end,
     less_than,
-    more_than
+    more_than,
+    root
 };
 
 int binding_power(TokenType t) {
@@ -72,7 +73,7 @@ struct node{
     node* right;
 
     //new
-    std::vector<node> vec;
+    std::vector<node*> Npvec;
 };
 
 node* val_node(std::string val){
@@ -81,6 +82,7 @@ node* val_node(std::string val){
     n->type=TokenType::int_lit;
     n->left = nullptr;
     n->right = nullptr;
+    
     return n;
 }
 
@@ -100,6 +102,10 @@ node* val_node_from_token(const Token& t){
     return n;
 }
 
+node* parse_indentifier(){
+
+}
+
 node* op_node(TokenType t, node* l, node* r){
     node* n = new node;
 
@@ -113,9 +119,10 @@ node* op_node(TokenType t, node* l, node* r){
    n->type=t;
 
     
-    
-    n->left=l;
-    n->right=r;
+    n->Npvec.push_back(l);
+    n->Npvec.push_back(r);
+    //n->left=l;
+    //n->right=r;
     return n;
 }
 
@@ -137,6 +144,11 @@ node* tree(std::vector<Token> tokens, int bp){
 
 node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
 
+    if (tokens[pos].type == TokenType::semi){
+        pos++;
+        return nullptr;
+    }
+
     if (pos >= tokens.size())
         return nullptr;
     // Parse the first value
@@ -147,8 +159,9 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
 
         node* n = new node;
         n->type = TokenType::_return;
-        n->left = expression;
-        n->right = nullptr;
+        //n->left = expression;
+        n->Npvec.push_back(expression);
+        //n->right = nullptr;
 
         return n;
     }
@@ -159,12 +172,14 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
         tokens[pos+3].type == TokenType::more_than) {
         
         pos += 4; // Advance past the identifier and <memory>
-        addr[std::to_string(pos-1)] = std::to_string(pos); 
+        addr[std::to_string(pos-1)] = std::to_string(pos);
+        Simple_tree(tokens, pos, 0);
     } else {
         //printf("error: missing addr\n");
         std::cout << "error: missing addr" << std::endl;
+        pos++;
         return  NULL;
-        pos++; // Just skip the identifier
+        //pos++; // Just skip the identifier
     }
 }
 
@@ -208,6 +223,19 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
 
     return left;
 }
+
+node* full_ast(std::vector<Token>& tokens){
+    node* Rnode = new node;
+    Rnode->type = TokenType::root;
+
+    while (pos < tokens.size())
+    {
+        std::cout << pos << std::endl;
+        Rnode->Npvec.push_back(Simple_tree(tokens, pos, 0));
+    }
+    return Rnode;
+}
+
 
 int dec=0;
 int m=0;
@@ -336,7 +364,7 @@ std::string generate(node* n)
     }
 
     if (n->type == TokenType::_return) {
-        generate(n->left);
+        generate(n->Npvec[0]);
 
         stream << "    pop rax\n";
         stream << "    mov rdi, rax\n";
@@ -347,8 +375,8 @@ std::string generate(node* n)
     }
 
     // binary operators
-    generate(n->left);
-    generate(n->right);
+    generate(n->Npvec[0]);
+    generate(n->Npvec[1]);
 
     stream << "    pop rbx\n";
     stream << "    pop rax\n";
@@ -382,6 +410,64 @@ std::string generate(node* n)
 
     return stream.str();
 }
+
+//////
+
+std::string token_type_name(TokenType type) {
+    switch (type) {
+        case TokenType::memory:      return "memory";
+        case TokenType::var_general: return "var";
+        case TokenType::identifier:  return "identifier";
+        case TokenType::_return:     return "return";
+        case TokenType::int_lit:     return "int";
+        case TokenType::semi:        return ";";
+        case TokenType::plus:        return "+";
+        case TokenType::minus:       return "-";
+        case TokenType::mul:         return "*";
+        case TokenType::div:         return "/";
+        case TokenType::eckig_start: return "[";
+        case TokenType::ecking_end:  return "]";
+        case TokenType::less_than:   return "<";
+        case TokenType::more_than:   return ">";
+        case TokenType::root:        return "root";
+        default:                     return "?";
+    }
+}
+
+void print_tree(node* n, std::string prefix = "", bool last = true) {
+    if (n == nullptr)
+        return;
+
+    // Print this node
+    std::cout << prefix;
+
+    if (last)
+        std::cout << "└── ";
+    else
+        std::cout << "├── ";
+
+    std::cout << token_type_name(n->type);
+
+    // Print value if it has one
+    if (!n->val.empty())
+        std::cout << " (" << n->val << ")";
+
+    std::cout << '\n';
+
+    // Prefix used for children
+    std::string child_prefix = prefix + (last ? "    " : "│   ");
+
+    for (size_t i = 0; i < n->Npvec.size(); ++i) {
+        print_tree(
+            n->Npvec[i],
+            child_prefix,
+            i == n->Npvec.size() - 1
+        );
+    }
+}
+
+
+/////
 
 
 
@@ -428,7 +514,11 @@ int main(int argc, char* argv[]){
   
 
 auto tokens = Tokenizer(buf.str());
-auto hm = Simple_tree(tokens, pos, 0);
+//auto hm = Simple_tree(tokens, pos, 0);
+auto hm = full_ast(tokens);
+
+std::cout << "\nAST:\n";
+print_tree(hm);
 
 std::cout << '\n' << std::endl;
 for (int i=0; i<tokens.size(); i++){
