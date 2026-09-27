@@ -15,6 +15,7 @@ std::unordered_map<std::string, std::string> addr;
 int pos=0;
 
 enum class TokenType {
+    uh,
     memory, // temp test
     var_general,
     identifier,
@@ -29,7 +30,9 @@ enum class TokenType {
     ecking_end,
     less_than,
     more_than,
-    root
+    root,
+    alias,
+    equal
 };
 
 int binding_power(TokenType t) {
@@ -76,6 +79,8 @@ struct node{
     std::vector<node*> Npvec;
 };
 
+node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp);
+
 node* val_node(std::string val){
     node* n = new node;
     n->val=val;
@@ -97,13 +102,38 @@ node* val_node_from_token(const Token& t){
         n->type = TokenType::identifier;
     else if (t.type == TokenType::memory)
         n->type = TokenType::memory;
-    else
-        n->type = t.type;
+    else{
+        //n->type = t.type;
+    }
     return n;
 }
 
-node* parse_indentifier(){
+node* parse_indentifier(std::string mem, std::vector<Token> tokens){
+    node* n = new node;
+    n->type = TokenType::identifier;
+    //n->val = mem;
 
+    node* nAlias = new node;
+    nAlias->val = mem;
+    nAlias->type = TokenType::alias;
+
+    node* nAddress = new node;
+    nAddress->type = TokenType::memory;
+    nAddress->val = addr[mem];
+
+    
+    pos+=1;
+
+    n->Npvec.push_back(Simple_tree(tokens, pos, 0));
+
+
+
+    n->Npvec.push_back(nAlias);
+    n->Npvec.push_back(nAddress);
+    //n->Npvec.push_back(nSet);
+
+
+    return n;
 }
 
 node* op_node(TokenType t, node* l, node* r){
@@ -126,21 +156,7 @@ node* op_node(TokenType t, node* l, node* r){
     return n;
 }
 
-node* tree(std::vector<Token> tokens, int bp){
-    if (pos >= tokens.size()) return nullptr;
-    node* left = val_node_from_token(tokens[pos]);
-    pos++;
-    //node* op = op_node(tokens[pos].type)
 
-
-    while (bp > binding_power(tokens[pos].type))
-    {
-        /* code */
-    }
-    
-    
-    return NULL;
-}
 
 node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
 
@@ -165,15 +181,18 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
 
         return n;
     }
-    if (tokens[pos].type == TokenType::identifier) {
-    if (pos + 3 < tokens.size() && 
-        tokens[pos+1].type == TokenType::less_than && 
-        tokens[pos+2].type == TokenType::memory && 
-        tokens[pos+3].type == TokenType::more_than) {
+    if (tokens[pos].type == TokenType::var_general) {
+    if (pos + 4 < tokens.size() && 
+        tokens[pos+1].type == TokenType::identifier &&
+        tokens[pos+2].type == TokenType::less_than && 
+        tokens[pos+3].type == TokenType::memory && 
+        tokens[pos+4].type == TokenType::more_than) {
         
+        pos++;
+        addr[tokens[pos].value.value()] = tokens[pos+2].value.value();
         pos += 4; // Advance past the identifier and <memory>
-        addr[std::to_string(pos-1)] = std::to_string(pos);
-        Simple_tree(tokens, pos, 0);
+
+        return parse_indentifier(tokens[pos-4].value.value(), tokens);
     } else {
         //printf("error: missing addr\n");
         std::cout << "error: missing addr" << std::endl;
@@ -182,20 +201,6 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
         //pos++; // Just skip the identifier
     }
 }
-
-    /*
-    if (tokens[pos].type == TokenType::var_general) {
-        pos++;  // move past "return"
-
-        node* expression = Simple_tree(tokens, pos, min_bp);
-
-        node* n = new node;
-        n->type = TokenType::_return;
-        n->left = expression;
-        n->right = nullptr;
-
-        return n;
-    }*/
 
     if (pos >= tokens.size()) return nullptr;
     node* left = val_node_from_token(tokens[pos]);
@@ -336,6 +341,10 @@ std::vector<Token> Tokenizer(std::string tok){
             tokens.push_back({.type = TokenType::less_than});
             m=1;
         }
+        else if (c == '='){
+            tokens.push_back({.type = TokenType::equal});
+            
+        }
         
         else if (std::isspace(c)){
             continue;
@@ -430,6 +439,7 @@ std::string token_type_name(TokenType type) {
         case TokenType::less_than:   return "<";
         case TokenType::more_than:   return ">";
         case TokenType::root:        return "root";
+        case TokenType::alias:       return "alias";
         default:                     return "?";
     }
 }

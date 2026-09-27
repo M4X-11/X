@@ -11,11 +11,12 @@
 
 /var[4] funny<os> = 3;
 
-/var test<0x7FFF0000> = 1;
+var test<0x7FFF0000> = 4;
 
 2+5;
+8;
 
-val test<0x7FFF0000>;
+/val test<0x7FFF0000>;
 
 return 3
 
