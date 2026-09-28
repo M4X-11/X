@@ -165,6 +165,16 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
         return nullptr;
     }
 
+    if (tokens[pos].type == TokenType::identifier){
+        node* n = new node;
+        n->type = TokenType::alias;
+        n->val = tokens[pos].value.value();
+        pos++;
+        return n;
+    }
+
+    
+
     if (pos >= tokens.size())
         return nullptr;
     // Parse the first value
@@ -366,11 +376,33 @@ std::string generate(node* n)
         return stream.str();
     }
 
-    if (n->type == TokenType::identifier) {
+    if (n->type == TokenType::alias) {
+        stream << "    mov rbx, " << addr[n->val] << "\n";
+        stream << "    mov rax, [rbx]\n";
+        stream << "    push rax\n";
+        return stream.str();
+    }
+
+    if (n->type == TokenType::identifier){
+
+        stream << "    mov rbx, " << n->Npvec[2]->val << "\n";
+        stream << "    mov rax, " << n->Npvec[0]->val << "\n";
+        stream << "    mov [rbx], rax" << "\n";
+        return stream.str();
+        //generate(n->Npvec[0]);
+        //generate(n->Npvec[1]);
+        //generate(n->Npvec[2]);
+    }
+
+
+    if (n->type == TokenType::alias) {
+        
         stream << "    mov rax, " << addr[n->val] << "\n";
         stream << "    push rax\n";
         return stream.str();
     }
+
+    
 
     if (n->type == TokenType::_return) {
         generate(n->Npvec[0]);
@@ -418,6 +450,16 @@ std::string generate(node* n)
     }
 
     return stream.str();
+}
+
+std::string full_gen(node* n){
+    std::stringstream Nstream;
+    for (int i=0; i<n->Npvec.size(); i++){
+        Nstream << generate(n->Npvec[i]);
+        stream.str("");
+        stream.clear();
+    }
+    return Nstream.str();
 }
 
 //////
@@ -545,7 +587,8 @@ std::cout << "tokens = " << tokens.size() << '\n';
 {
     std::ofstream uh("lol.asm");
     stream << "global _start\n_start:\n";
-    uh << generate(hm);
+    //uh << generate(hm);
+    uh << full_gen(hm);
 }
     MyReadFile.close();
     std::string filename = "lol.asm";

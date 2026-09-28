@@ -11,7 +11,7 @@
 
 /var[4] funny<os> = 3;
 
-var test<0x7FFF0000> = 4;
+var test<0x601000> = 4;
 
 2+5;
 8;
@@ -22,4 +22,4 @@ return 3
 
 +
 
-5;
+5 * test;
