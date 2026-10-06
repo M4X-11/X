@@ -11,7 +11,11 @@
 
 /var[4] funny<os> = 3;
 
-var test<0x601000> = 4;
+
+/super low level
+/var test<0x55a82833a320> = 4;
+
+int hey = 3;
 
 2+5;
 8;
@@ -22,4 +26,4 @@ return 3
 
 +
 
-5 * test;
+5 * 4;

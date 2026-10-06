@@ -551,7 +551,7 @@ int main(int argc, char* argv[]){
         continue;
     }
     std::cout << myText;
-    buf << myText;
+    buf << myText << " ";
     }
     std::cout << "\n";
 
