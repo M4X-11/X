@@ -34,7 +34,8 @@ enum class TokenType {
     more_than,
     root,
     alias,
-    equal
+    equal,
+    declaration
 };
 
 int binding_power(TokenType t) {
@@ -158,6 +159,11 @@ node* op_node(TokenType t, node* l, node* r){
     return n;
 }
 
+node* parse_intVar(){
+
+    return NULL;
+}
+
 
 
 node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
@@ -195,7 +201,13 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
     }
 
     if (tokens[pos].type == TokenType::var_int){
-
+        node* n = new node;
+        n->type = TokenType::declaration;
+        pos++;
+        n->val = tokens[pos].value.value();
+        pos+=2;
+        n->Npvec.push_back(Simple_tree(tokens, pos, 0));
+        return n;
     }
 
     /////////
@@ -292,7 +304,7 @@ std::vector<Token> Tokenizer(std::string tok){
             if (buffer == "var"){
                 tokens.push_back({.type = TokenType::var_general});
                 buffer.clear();
-            }
+            } else
             if (buffer == "int"){
                 tokens.push_back({.type = TokenType::var_int});
                 buffer.clear();
@@ -304,7 +316,7 @@ std::vector<Token> Tokenizer(std::string tok){
                 });
                 std::cout << static_cast<int>(TokenType::identifier) << " : " << buffer << std::endl;
                 buffer.clear();
-                dec=1;
+                //dec=1;
             }else {
                 tokens.push_back({
                     .type = TokenType::memory,
@@ -380,11 +392,19 @@ std::vector<Token> Tokenizer(std::string tok){
 }
 
 std::stringstream stream;
+std::stringstream dataStream;
 
 std::string generate(node* n)
 {
     if (n == nullptr)
         return stream.str();
+
+    /*
+    if (n->type == TokenType::var_int) {
+        stream << "    " << n->val << ":" << 
+        stream << "    push rax\n";
+        return stream.str();
+    }*/
 
     if (n->type == TokenType::int_lit) {
         stream << "    mov rax, " << n->val << "\n";
@@ -469,6 +489,10 @@ std::string generate(node* n)
 }
 
 std::string full_gen(node* n){
+
+     
+
+    //stream << "global _start\n_start:\n";
     std::stringstream Nstream;
     for (int i=0; i<n->Npvec.size(); i++){
         Nstream << generate(n->Npvec[i]);
@@ -498,6 +522,7 @@ std::string token_type_name(TokenType type) {
         case TokenType::more_than:   return ">";
         case TokenType::root:        return "root";
         case TokenType::alias:       return "alias";
+        case TokenType::declaration:       return "declaration";
         default:                     return "?";
     }
 }
@@ -536,6 +561,16 @@ void print_tree(node* n, std::string prefix = "", bool last = true) {
 
 
 /////
+
+std::string finalGen(std::string text, std::string data){
+    std::stringstream final;
+
+    final << "section .data\n";
+    final << data << "\n";
+    final << "section .text\nglobal main\nmain:\n";
+    final << text;
+    return final.str();
+}
 
 
 
@@ -602,7 +637,7 @@ std::cout << "tokens = " << tokens.size() << '\n';
 
 {
     std::ofstream uh("lol.asm");
-    stream << "global _start\n_start:\n";
+    
     //uh << generate(hm);
     uh << full_gen(hm);
 }
