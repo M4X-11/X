@@ -15,7 +15,7 @@
 /super low level
 /var test<0x55a82833a320> = 4;
 
-int hey = 3*9;
+/int hey = 3*9;
 
 2+5;
 8;
@@ -26,4 +26,4 @@ return 3
 
 +
 
-5 * 4+hey;
+5 * 4;
