@@ -35,6 +35,7 @@ enum class TokenType {
     root,
     alias,
     equal,
+    write,
     declaration
 };
 
@@ -200,6 +201,20 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
         return n;
     }
 
+    if (tokens[pos].type == TokenType::write) {
+        pos++;  // move past "return"
+
+        node* expression = Simple_tree(tokens, pos, min_bp);
+
+        node* n = new node;
+        n->type = TokenType::write;
+        //n->left = expression;
+        n->Npvec.push_back(expression);
+        //n->right = nullptr;
+
+        return n;
+    }
+
     if (tokens[pos].type == TokenType::var_int){
         node* n = new node;
         n->type = TokenType::declaration;
@@ -277,6 +292,9 @@ int m=0;
 std::vector<Token> Tokenizer(std::string tok){
     std::vector<Token> tokens;
     std::string buffer;
+
+    m = 0;
+    dec = 0;
     
     
     for (size_t i = 0; i < tok.size(); i++){
@@ -307,6 +325,10 @@ std::vector<Token> Tokenizer(std::string tok){
             } else
             if (buffer == "int"){
                 tokens.push_back({.type = TokenType::var_int});
+                buffer.clear();
+            } else
+            if (buffer == "write"){
+                tokens.push_back({.type = TokenType::write});
                 buffer.clear();
             }
             else if (!dec) {
@@ -438,6 +460,15 @@ std::string generate(node* n)
         return stream.str();
     }
 
+    if (n->type == TokenType::write) {
+        generate(n->Npvec[0]);
+
+        stream << "    pop rax\n";
+        stream << "    call print_number_fast\n";
+
+        return stream.str();
+    }
+
     
 
     if (n->type == TokenType::_return) {
@@ -523,6 +554,7 @@ std::string token_type_name(TokenType type) {
         case TokenType::root:        return "root";
         case TokenType::alias:       return "alias";
         case TokenType::declaration:       return "declaration";
+        case TokenType::write:       return "write";
         default:                     return "?";
     }
 }
@@ -639,6 +671,7 @@ std::cout << "tokens = " << tokens.size() << '\n';
     std::ofstream uh("lol.asm");
     
     //uh << generate(hm);
+    uh << "section .text\nglobal _start\nprint_number_fast:\n; === PROLOGUE ===\npush rbp\nmov rbp, rsp\n; Allocate 16 bytes on the stack for our string buffer\nsub rsp, 16\n; Track if the number was negative using a register we won't break (R8)\nmov r8, 0\n; Check if the number is negative\ncmp rax, 0\njge prepare_buffer       ; If it's positive, skip to buffer setup\nneg rax\nmov r8, 1\nprepare_buffer:\n; Start filling our buffer from the VERY END (right to left)\nmov byte [rbp - 1], 10\nmov rsi, rbp             ; Use RSI to track where our string starts\ndec rsi                  ; Move pointer to the newline\nmov rcx, 1               ; RCX counts total string length (starts\nconvert_loop:\nmov rdx, 0               ; Clear RDX for division\nmov rbx, 10\ndiv rbx                  ; RAX = quotient, RDX = remainder\nadd rdx, 48              ; Convert remainder digit to ASCII\ndec rsi                  ; Move our string pointer one byte to the left\nmov [rsi], dl            ; Store the ASCII character\ninc rcx                  ; Increase our character count\ncmp rax, 0               ; Are we out of digits?\njne convert_loop         ; If not, keep going\n; Check our flag: Do we need to slap a minus sign on the front?\ncmp r8, 1\njne do_syscall           ; If not negative, go straight to printing\ndec rsi                  ; Move pointer one more byte to the left\nmov byte [rsi], 45\ninc rcx\ndo_syscall:\nmov rax, 1\nmov rdi, 1\nmov rdx, rcx\nsyscall\n; === EPILOGUE ===\nmov rsp, rbp\npop rbp\nret\n_start:\n";
     uh << full_gen(hm);
 }
     MyReadFile.close();
