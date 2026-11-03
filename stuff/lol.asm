@@ -44,8 +44,57 @@ syscall
 mov rsp, rbp
 pop rbp
 ret
+yay:
+    push rbp
+    mov rbp, rsp
+    mov rax, 4
+    push rax
+    mov rax, 1
+    push rax
+    pop rbx
+    pop rax
+    add rax, rbx
+    push rax
+    pop rax
+    call print_number_fast
+    pop rax
+    jmp .return
+.return:
+    mov rsp, rbp
+    pop rbp
+    ret
+no:
+    push rbp
+    mov rbp, rsp
+    mov rax, 3
+    push rax
+    pop rax
+    jmp .return
+.return:
+    mov rsp, rbp
+    pop rbp
+    ret
+lol:
+    push rbp
+    mov rbp, rsp
+    mov rax, 2
+    push rax
+    call no
+    push rax
+    pop rbx
+    pop rax
+    imul rax, rbx
+    push rax
+    pop rax
+    jmp .return
+.return:
+    mov rsp, rbp
+    pop rbp
+    ret
 _start:
-    mov rax, 0120
+    call yay
+    push rax
+    call lol
     push rax
     pop rax
     call print_number_fast

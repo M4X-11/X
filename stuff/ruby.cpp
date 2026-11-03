@@ -30,12 +30,22 @@ enum class TokenType {
     div,
     eckig_start,
     ecking_end,
+    squirly_start,
+    squirly_end,
+    bracket_start,
+    bracket_end,
     less_than,
     more_than,
     root,
     alias,
     equal,
     write,
+    fun,
+    argumennt,
+    ret,
+    body,
+    start,
+    fcall,
     declaration
 };
 
@@ -169,9 +179,22 @@ node* parse_intVar(){
 
 node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
 
+    if (pos >= tokens.size())
+        return nullptr;
+
     if (tokens[pos].type == TokenType::semi){
         pos++;
         return nullptr;
+    }
+
+    if (pos + 1 < tokens.size() && 
+        tokens[pos].type == TokenType::identifier && 
+        tokens[pos+1].type == TokenType::bracket_start){
+        node* n = new node;
+        n->type = TokenType::fcall;
+        n->val = tokens[pos].value.value();
+        pos += 3; // consume identifier, bracket_start, and bracket_end (adjust if parsing args inside)
+        return n;
     }
 
     if (tokens[pos].type == TokenType::identifier){
@@ -182,6 +205,36 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
         return n;
     }
 
+    if (tokens[pos].type == TokenType::fun) {
+        pos++;  
+
+        
+
+        node* n = new node;
+        n->type = TokenType::fun;
+        n->val = tokens[pos].value.value();
+
+        pos++;
+        while (tokens[pos].type==TokenType::identifier)
+        {
+            node* yo = new node;
+            yo->type=TokenType::argumennt;
+            yo->val=tokens[pos].value.value();
+            yo->type=TokenType::argumennt;
+            n->Npvec.push_back(yo);
+            pos++;
+        }
+        
+
+        node* expression = Simple_tree(tokens, pos, min_bp);
+        expression->type = TokenType::ret;
+
+        
+        n->Npvec.push_back(expression);
+        
+
+        return n;
+    }
     
 
     if (pos >= tokens.size())
@@ -194,6 +247,34 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
 
         node* n = new node;
         n->type = TokenType::_return;
+        //n->left = expression;
+        n->Npvec.push_back(expression);
+        //n->right = nullptr;
+
+        return n;
+    }
+
+    if (tokens[pos].type == TokenType::start) {
+        pos++;  // move past "return"
+
+        node* expression = Simple_tree(tokens, pos, min_bp);
+
+        node* n = new node;
+        n->type = TokenType::start;
+        //n->left = expression;
+        n->Npvec.push_back(expression);
+        //n->right = nullptr;
+
+        return n;
+    }
+
+    if (tokens[pos].type == TokenType::ret) {
+        pos++;  // move past "return"
+
+        node* expression = Simple_tree(tokens, pos, min_bp);
+
+        node* n = new node;
+        n->type = TokenType::ret;
         //n->left = expression;
         n->Npvec.push_back(expression);
         //n->right = nullptr;
@@ -330,7 +411,21 @@ std::vector<Token> Tokenizer(std::string tok){
             if (buffer == "write"){
                 tokens.push_back({.type = TokenType::write});
                 buffer.clear();
+            } else
+            if (buffer == "fun"){
+                tokens.push_back({.type = TokenType::fun});
+                buffer.clear();
+            } else
+            if (buffer == "ret"){
+                tokens.push_back({.type = TokenType::ret});
+                buffer.clear();
             }
+             else
+            if (buffer == "start" && tok.at(i+1)==':'){
+                tokens.push_back({.type = TokenType::start});
+                buffer.clear();
+            }
+            
             else if (!dec) {
                 tokens.push_back({
                     .type = TokenType::identifier,
@@ -387,11 +482,23 @@ std::vector<Token> Tokenizer(std::string tok){
         else if (c == ';'){
             tokens.push_back({.type = TokenType::semi});
         }
+        else if (c == '('){
+            tokens.push_back({.type = TokenType::bracket_start});
+        }
+        else if (c == ')'){
+            tokens.push_back({.type = TokenType::bracket_end});
+        }
         else if (c == '['){
             tokens.push_back({.type = TokenType::eckig_start});
         }
         else if (c == ']'){
             tokens.push_back({.type = TokenType::ecking_end});
+        }
+        else if (c == '{'){
+            tokens.push_back({.type = TokenType::squirly_start});
+        }
+        else if (c == '}'){
+            tokens.push_back({.type = TokenType::squirly_end});
         }
         else if (c == '<'){
             tokens.push_back({.type = TokenType::less_than});
@@ -427,6 +534,25 @@ std::string generate(node* n)
         stream << "    push rax\n";
         return stream.str();
     }*/
+
+    if (n->type == TokenType::fcall) {
+        // 1. If you have arguments stored in Npvec, generate them here BEFORE the call:
+        // for (auto* arg : n->Npvec) { generate(arg); }
+
+        // 2. Call the function
+        stream << "    call " << n->val << "\n";
+
+        // 3. Push the return value (rax) onto the stack so stack-based consumers (like write) can pop it
+        stream << "    push rax\n";
+
+        return stream.str();
+    }
+
+    if (n->type == TokenType::start) {
+        stream << "_start:\n";
+        generate(n->Npvec[0]);
+        return stream.str();
+    }
 
     if (n->type == TokenType::int_lit) {
         stream << "    mov rax, " << n->val << "\n";
@@ -469,6 +595,27 @@ std::string generate(node* n)
         return stream.str();
     }
 
+    if (n->type == TokenType::fun) {
+
+        if (n->Npvec.empty() || n->Npvec.back() == nullptr) {
+            std::cerr << "Function has no body: " << n->val << "\n";
+            return stream.str();
+        }
+
+        stream << n->val << ":\n";
+        stream << "    push rbp\n";
+        stream << "    mov rbp, rsp\n";
+
+        generate(n->Npvec.back());
+
+        stream << ".return:\n";
+        stream << "    mov rsp, rbp\n";
+        stream << "    pop rbp\n";
+        stream << "    ret\n";
+
+        return stream.str();
+    }
+
     
 
     if (n->type == TokenType::_return) {
@@ -478,6 +625,14 @@ std::string generate(node* n)
         stream << "    mov rdi, rax\n";
         stream << "    mov rax, 60\n";
         stream << "    syscall\n";
+
+        return stream.str();
+    }
+    if (n->type == TokenType::ret) {
+        generate(n->Npvec[0]);
+
+        stream << "    pop rax\n";
+        stream << "    jmp .return\n";
 
         return stream.str();
     }
@@ -555,6 +710,11 @@ std::string token_type_name(TokenType type) {
         case TokenType::alias:       return "alias";
         case TokenType::declaration:       return "declaration";
         case TokenType::write:       return "write";
+        case TokenType::fun:         return "fun";
+        case TokenType::argumennt:  return "arg";
+        case TokenType::body:       return "body";
+        case TokenType::ret:       return "ret";
+        case TokenType::fcall:      return "fcall";
         default:                     return "?";
     }
 }
@@ -671,7 +831,7 @@ std::cout << "tokens = " << tokens.size() << '\n';
     std::ofstream uh("lol.asm");
     
     //uh << generate(hm);
-    uh << "section .text\nglobal _start\nprint_number_fast:\n; === PROLOGUE ===\npush rbp\nmov rbp, rsp\n; Allocate 16 bytes on the stack for our string buffer\nsub rsp, 16\n; Track if the number was negative using a register we won't break (R8)\nmov r8, 0\n; Check if the number is negative\ncmp rax, 0\njge prepare_buffer       ; If it's positive, skip to buffer setup\nneg rax\nmov r8, 1\nprepare_buffer:\n; Start filling our buffer from the VERY END (right to left)\nmov byte [rbp - 1], 10\nmov rsi, rbp             ; Use RSI to track where our string starts\ndec rsi                  ; Move pointer to the newline\nmov rcx, 1               ; RCX counts total string length (starts\nconvert_loop:\nmov rdx, 0               ; Clear RDX for division\nmov rbx, 10\ndiv rbx                  ; RAX = quotient, RDX = remainder\nadd rdx, 48              ; Convert remainder digit to ASCII\ndec rsi                  ; Move our string pointer one byte to the left\nmov [rsi], dl            ; Store the ASCII character\ninc rcx                  ; Increase our character count\ncmp rax, 0               ; Are we out of digits?\njne convert_loop         ; If not, keep going\n; Check our flag: Do we need to slap a minus sign on the front?\ncmp r8, 1\njne do_syscall           ; If not negative, go straight to printing\ndec rsi                  ; Move pointer one more byte to the left\nmov byte [rsi], 45\ninc rcx\ndo_syscall:\nmov rax, 1\nmov rdi, 1\nmov rdx, rcx\nsyscall\n; === EPILOGUE ===\nmov rsp, rbp\npop rbp\nret\n_start:\n";
+    uh << "section .text\nglobal _start\nprint_number_fast:\n; === PROLOGUE ===\npush rbp\nmov rbp, rsp\n; Allocate 16 bytes on the stack for our string buffer\nsub rsp, 16\n; Track if the number was negative using a register we won't break (R8)\nmov r8, 0\n; Check if the number is negative\ncmp rax, 0\njge prepare_buffer       ; If it's positive, skip to buffer setup\nneg rax\nmov r8, 1\nprepare_buffer:\n; Start filling our buffer from the VERY END (right to left)\nmov byte [rbp - 1], 10\nmov rsi, rbp             ; Use RSI to track where our string starts\ndec rsi                  ; Move pointer to the newline\nmov rcx, 1               ; RCX counts total string length (starts\nconvert_loop:\nmov rdx, 0               ; Clear RDX for division\nmov rbx, 10\ndiv rbx                  ; RAX = quotient, RDX = remainder\nadd rdx, 48              ; Convert remainder digit to ASCII\ndec rsi                  ; Move our string pointer one byte to the left\nmov [rsi], dl            ; Store the ASCII character\ninc rcx                  ; Increase our character count\ncmp rax, 0               ; Are we out of digits?\njne convert_loop         ; If not, keep going\n; Check our flag: Do we need to slap a minus sign on the front?\ncmp r8, 1\njne do_syscall           ; If not negative, go straight to printing\ndec rsi                  ; Move pointer one more byte to the left\nmov byte [rsi], 45\ninc rcx\ndo_syscall:\nmov rax, 1\nmov rdi, 1\nmov rdx, rcx\nsyscall\n; === EPILOGUE ===\nmov rsp, rbp\npop rbp\nret\n";
     uh << full_gen(hm);
 }
     MyReadFile.close();
