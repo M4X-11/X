@@ -92,8 +92,6 @@ lol:
     pop rbp
     ret
 _start:
-    call yay
-    push rax
     call lol
     push rax
     pop rax

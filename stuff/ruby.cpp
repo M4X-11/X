@@ -9,12 +9,10 @@
 
 std::unordered_map<std::string, std::string> addr;
 
+int pos = 0;
 
-
-
-int pos=0;
-
-enum class TokenType {
+enum class TokenType
+{
     uh,
     memory, // temp test
     var_general,
@@ -38,7 +36,13 @@ enum class TokenType {
     more_than,
     root,
     alias,
+    assign,
     equal,
+    not_equal,
+    ls,
+    ls_or_eq,
+    moreThan,
+    more_or_eq,
     write,
     fun,
     argumennt,
@@ -46,67 +50,70 @@ enum class TokenType {
     body,
     start,
     fcall,
+    _if,
+    _else,
     declaration
 };
 
-int binding_power(TokenType t) {
-    switch (t) {
-        case TokenType::plus:
-        case TokenType::minus:
-            return 10;
+int binding_power(TokenType t)
+{
+    switch (t)
+    {
+    case TokenType::plus:
+    case TokenType::minus:
+        return 10;
 
-        case TokenType::mul:
-        case TokenType::div:
-            return 20;
+    case TokenType::mul:
+    case TokenType::div:
+        return 20;
 
-        default:
-            return 0;
+    default:
+        return 0;
     }
 }
-
-
-
 
 struct Token
 {
     TokenType type;
-    std::optional<std::string> value {};
+    std::optional<std::string> value{};
 };
 
-
-
-enum class NodeType{
+enum class NodeType
+{
     _return,
     punkt,
     strich,
     value
 };
 
-struct node{
+struct node
+{
     TokenType type;
     std::string val;
 
-    node* left;
-    node* right;
+    node *left;
+    node *right;
 
-    //new
-    std::vector<node*> Npvec;
+    // new
+    std::vector<node *> Npvec;
 };
 
-node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp);
+node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp);
 
-node* val_node(std::string val){
-    node* n = new node;
-    n->val=val;
-    n->type=TokenType::int_lit;
+node *val_node(std::string val)
+{
+    node *n = new node;
+    n->val = val;
+    n->type = TokenType::int_lit;
     n->left = nullptr;
     n->right = nullptr;
-    
+
     return n;
 }
 
-node* val_node_from_token(const Token& t){
-    node* n = new node;
+node *val_node_from_token(const Token &t)
+{
+    node *n = new node;
     n->val = t.value.value_or(std::string());
     n->left = nullptr;
     n->right = nullptr;
@@ -116,43 +123,41 @@ node* val_node_from_token(const Token& t){
         n->type = TokenType::identifier;
     else if (t.type == TokenType::memory)
         n->type = TokenType::memory;
-    else{
-        //n->type = t.type;
+    else
+    {
+        // n->type = t.type;
     }
     return n;
 }
 
-node* parse_LowVar(std::string mem, std::vector<Token> tokens){
-    node* n = new node;
+node *parse_LowVar(std::string mem, std::vector<Token> tokens)
+{
+    node *n = new node;
     n->type = TokenType::identifier;
-    //n->val = mem;
+    // n->val = mem;
 
-    node* nAlias = new node;
+    node *nAlias = new node;
     nAlias->val = mem;
     nAlias->type = TokenType::alias;
 
-    node* nAddress = new node;
+    node *nAddress = new node;
     nAddress->type = TokenType::memory;
     nAddress->val = addr[mem];
 
-    
-    pos+=1;
+    pos += 1;
 
     n->Npvec.push_back(Simple_tree(tokens, pos, 0));
 
-
-
     n->Npvec.push_back(nAlias);
     n->Npvec.push_back(nAddress);
-    //n->Npvec.push_back(nSet);
-
+    // n->Npvec.push_back(nSet);
 
     return n;
 }
 
-node* op_node(TokenType t, node* l, node* r){
-    node* n = new node;
-
+node *op_node(TokenType t, node *l, node *r)
+{
+    node *n = new node;
 
     /*
     if (t == TokenType::plus || t == TokenType::minus){
@@ -160,181 +165,194 @@ node* op_node(TokenType t, node* l, node* r){
     }else{
         n->type = NodeType::punkt;
     }*/
-   n->type=t;
+    n->type = t;
 
-    
     n->Npvec.push_back(l);
     n->Npvec.push_back(r);
-    //n->left=l;
-    //n->right=r;
+    // n->left=l;
+    // n->right=r;
     return n;
 }
 
-node* parse_intVar(){
+node *parse_intVar()
+{
 
     return NULL;
 }
 
-
-
-node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
+node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
+{
 
     if (pos >= tokens.size())
         return nullptr;
 
-    if (tokens[pos].type == TokenType::semi){
+    if (tokens[pos].type == TokenType::semi)
+    {
         pos++;
         return nullptr;
     }
 
-    if (pos + 1 < tokens.size() && 
-        tokens[pos].type == TokenType::identifier && 
-        tokens[pos+1].type == TokenType::bracket_start){
-        node* n = new node;
+    if (pos + 1 < tokens.size() &&
+        tokens[pos].type == TokenType::identifier &&
+        tokens[pos + 1].type == TokenType::bracket_start)
+    {
+        node *n = new node;
         n->type = TokenType::fcall;
         n->val = tokens[pos].value.value();
         pos += 3; // consume identifier, bracket_start, and bracket_end (adjust if parsing args inside)
         return n;
     }
 
-    if (tokens[pos].type == TokenType::identifier){
-        node* n = new node;
+    if (tokens[pos].type == TokenType::identifier)
+    {
+        node *n = new node;
         n->type = TokenType::alias;
         n->val = tokens[pos].value.value();
         pos++;
         return n;
     }
 
-    if (tokens[pos].type == TokenType::fun) {
-        pos++;  
+    if (tokens[pos].type == TokenType::fun)
+    {
+        pos++;
 
-        
-
-        node* n = new node;
+        node *n = new node;
         n->type = TokenType::fun;
         n->val = tokens[pos].value.value();
 
         pos++;
-        while (tokens[pos].type==TokenType::identifier)
+        while (tokens[pos].type == TokenType::identifier)
         {
-            node* yo = new node;
-            yo->type=TokenType::argumennt;
-            yo->val=tokens[pos].value.value();
-            yo->type=TokenType::argumennt;
+            node *yo = new node;
+            yo->type = TokenType::argumennt;
+            yo->val = tokens[pos].value.value();
+            yo->type = TokenType::argumennt;
             n->Npvec.push_back(yo);
             pos++;
         }
-        
 
-        node* expression = Simple_tree(tokens, pos, min_bp);
+        node *expression = Simple_tree(tokens, pos, min_bp);
         expression->type = TokenType::ret;
 
-        
+        while (tokens[pos].type == TokenType::squirly_end)
+        {
+        }
+
         n->Npvec.push_back(expression);
-        
 
         return n;
     }
-    
 
     if (pos >= tokens.size())
         return nullptr;
     // Parse the first value
-    if (tokens[pos].type == TokenType::_return) {
-        pos++;  // move past "return"
+    if (tokens[pos].type == TokenType::_return)
+    {
+        pos++; // move past "return"
 
-        node* expression = Simple_tree(tokens, pos, min_bp);
+        node *expression = Simple_tree(tokens, pos, min_bp);
 
-        node* n = new node;
+        node *n = new node;
         n->type = TokenType::_return;
-        //n->left = expression;
+        // n->left = expression;
         n->Npvec.push_back(expression);
-        //n->right = nullptr;
+        // n->right = nullptr;
 
         return n;
     }
 
-    if (tokens[pos].type == TokenType::start) {
-        pos++;  // move past "return"
+    if (tokens[pos].type == TokenType::start)
+    {
+        pos++; // move past "return"
 
-        node* expression = Simple_tree(tokens, pos, min_bp);
+        node *expression = Simple_tree(tokens, pos, min_bp);
 
-        node* n = new node;
+        node *n = new node;
         n->type = TokenType::start;
-        //n->left = expression;
+        // n->left = expression;
         n->Npvec.push_back(expression);
-        //n->right = nullptr;
+        // n->right = nullptr;
 
         return n;
     }
 
-    if (tokens[pos].type == TokenType::ret) {
-        pos++;  // move past "return"
+    if (tokens[pos].type == TokenType::ret)
+    {
+        pos++; // move past "return"
 
-        node* expression = Simple_tree(tokens, pos, min_bp);
+        node *expression = Simple_tree(tokens, pos, min_bp);
 
-        node* n = new node;
+        node *n = new node;
         n->type = TokenType::ret;
-        //n->left = expression;
+        // n->left = expression;
         n->Npvec.push_back(expression);
-        //n->right = nullptr;
+        // n->right = nullptr;
 
         return n;
     }
 
-    if (tokens[pos].type == TokenType::write) {
-        pos++;  // move past "return"
+    if (tokens[pos].type == TokenType::write)
+    {
+        pos++; // move past "return"
 
-        node* expression = Simple_tree(tokens, pos, min_bp);
+        node *expression = Simple_tree(tokens, pos, min_bp);
 
-        node* n = new node;
+        node *n = new node;
         n->type = TokenType::write;
-        //n->left = expression;
+        // n->left = expression;
         n->Npvec.push_back(expression);
-        //n->right = nullptr;
+        // n->right = nullptr;
 
         return n;
     }
 
-    if (tokens[pos].type == TokenType::var_int){
-        node* n = new node;
+    if (tokens[pos].type == TokenType::var_int)
+    {
+        node *n = new node;
         n->type = TokenType::declaration;
         pos++;
         n->val = tokens[pos].value.value();
-        pos+=2;
+        pos += 2;
         n->Npvec.push_back(Simple_tree(tokens, pos, 0));
         return n;
     }
 
     /////////
-    if (tokens[pos].type == TokenType::var_general) {
-    if (pos + 4 < tokens.size() && 
-        tokens[pos+1].type == TokenType::identifier &&
-        tokens[pos+2].type == TokenType::less_than && 
-        tokens[pos+3].type == TokenType::memory && 
-        tokens[pos+4].type == TokenType::more_than) {
-        
-        pos++;
-        addr[tokens[pos].value.value()] = tokens[pos+2].value.value();
-        pos += 4; // Advance past the identifier and <memory>
+    if (tokens[pos].type == TokenType::var_general)
+    {
+        if (pos + 4 < tokens.size() &&
+            tokens[pos + 1].type == TokenType::identifier &&
+            tokens[pos + 2].type == TokenType::less_than &&
+            tokens[pos + 3].type == TokenType::memory &&
+            tokens[pos + 4].type == TokenType::more_than)
+        {
 
-        return parse_LowVar(tokens[pos-4].value.value(), tokens);
-    } else {
-        //printf("error: missing addr\n");
-        std::cout << "error: missing addr" << std::endl;
-        pos++;
-        return  NULL;
-        //pos++; // Just skip the identifier
-    }}
+            pos++;
+            addr[tokens[pos].value.value()] = tokens[pos + 2].value.value();
+            pos += 4; // Advance past the identifier and <memory>
+
+            return parse_LowVar(tokens[pos - 4].value.value(), tokens);
+        }
+        else
+        {
+            // printf("error: missing addr\n");
+            std::cout << "error: missing addr" << std::endl;
+            pos++;
+            return NULL;
+            // pos++; // Just skip the identifier
+        }
+    }
     //////////////////
 
-    if (pos >= tokens.size()) return nullptr;
-    node* left = val_node_from_token(tokens[pos]);
+    if (pos >= tokens.size())
+        return nullptr;
+    node *left = val_node_from_token(tokens[pos]);
 
     pos++;
 
     // Look at operators after it
-    while (pos < tokens.size()) {
+    while (pos < tokens.size())
+    {
 
         TokenType op = tokens[pos].type;
 
@@ -347,7 +365,7 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
         pos++; // consume operator
 
         // Parse right side
-        node* right = Simple_tree(tokens, pos, op_bp);
+        node *right = Simple_tree(tokens, pos, op_bp);
 
         left = op_node(op, left, right);
     }
@@ -355,8 +373,9 @@ node* Simple_tree(std::vector<Token>& tokens, int& pos, int min_bp) {
     return left;
 }
 
-node* full_ast(std::vector<Token>& tokens){
-    node* Rnode = new node;
+node *full_ast(std::vector<Token> &tokens)
+{
+    node *Rnode = new node;
     Rnode->type = TokenType::root;
 
     while (pos < tokens.size())
@@ -367,97 +386,117 @@ node* full_ast(std::vector<Token>& tokens){
     return Rnode;
 }
 
-
-int dec=0;
-int m=0;
-std::vector<Token> Tokenizer(std::string tok){
+int dec = 0;
+int m = 0;
+std::vector<Token> Tokenizer(std::string tok)
+{
     std::vector<Token> tokens;
     std::string buffer;
 
     m = 0;
     dec = 0;
-    
-    
-    for (size_t i = 0; i < tok.size(); i++){
+
+    for (size_t i = 0; i < tok.size(); i++)
+    {
         char c = tok.at(i);
 
-         if (c == '>'){
+        if (c == '>')
+        {
             tokens.push_back({.type = TokenType::more_than});
-            m=0;
+            m = 0;
         }
-        
-        if (std::isalpha(c) || m){
+
+        if (std::isalpha(c) || m)
+        {
             buffer.push_back(c);
             i++;
-            
-            while (i < tok.size() && std::isalnum(tok.at(i))) {
+
+            while (i < tok.size() && std::isalnum(tok.at(i)))
+            {
                 buffer.push_back(tok.at(i));
                 i++;
             }
-            i--; 
+            i--;
 
-            if (buffer == "return"){
+            if (buffer == "return")
+            {
                 tokens.push_back({.type = TokenType::_return});
                 buffer.clear();
-            } else
-            if (buffer == "var"){
+            }
+            else if (buffer == "var")
+            {
                 tokens.push_back({.type = TokenType::var_general});
                 buffer.clear();
-            } else
-            if (buffer == "int"){
+            }
+            else if (buffer == "int")
+            {
                 tokens.push_back({.type = TokenType::var_int});
                 buffer.clear();
-            } else
-            if (buffer == "write"){
+            }
+            else if (buffer == "write")
+            {
                 tokens.push_back({.type = TokenType::write});
                 buffer.clear();
-            } else
-            if (buffer == "fun"){
+            }
+            else if (buffer == "fun")
+            {
                 tokens.push_back({.type = TokenType::fun});
                 buffer.clear();
-            } else
-            if (buffer == "ret"){
+            }
+            else if (buffer == "ret")
+            {
                 tokens.push_back({.type = TokenType::ret});
                 buffer.clear();
             }
-             else
-            if (buffer == "start" && tok.at(i+1)==':'){
+            else if (buffer == "if")
+            {
+                tokens.push_back({.type = TokenType::_if});
+                buffer.clear();
+            }
+            else if (buffer == "else")
+            {
+                tokens.push_back({.type = TokenType::_else});
+                buffer.clear();
+            }
+            else if (buffer == "start" && tok.at(i + 1) == ':')
+            {
                 tokens.push_back({.type = TokenType::start});
                 buffer.clear();
             }
-            
-            else if (!dec) {
-                tokens.push_back({
-                    .type = TokenType::identifier,
-                    .value = buffer
-                });
+
+            else if (!dec)
+            {
+                tokens.push_back({.type = TokenType::identifier,
+                                  .value = buffer});
                 std::cout << static_cast<int>(TokenType::identifier) << " : " << buffer << std::endl;
                 buffer.clear();
-                //dec=1;
-            }else {
-                tokens.push_back({
-                    .type = TokenType::memory,
-                    .value = buffer
-                });
+                // dec=1;
+            }
+            else
+            {
+                tokens.push_back({.type = TokenType::memory,
+                                  .value = buffer});
                 std::cout << static_cast<int>(TokenType::memory) << " : " << buffer << std::endl;
                 buffer.clear();
-                dec=0;
+                dec = 0;
             }
             /*else{
                 std::cerr << "error: unrecognized identifier '" << buffer << "'" << std::endl;
                 exit(EXIT_FAILURE);
             }*/
         }
-        else if (std::isdigit(c) && m==0){
+        else if (std::isdigit(c) && m == 0)
+        {
             buffer.push_back(c);
             i++;
-            
-            while (i < tok.size() && std::isdigit(tok.at(i))) {
+
+            while (i < tok.size() && std::isdigit(tok.at(i)))
+            {
                 buffer.push_back(tok.at(i));
                 i++;
             }
-            i--; 
-            
+            i--;
+
             tokens.push_back({.type = TokenType::int_lit, .value = buffer});
             std::cout << static_cast<int>(TokenType::int_lit) << " : " << buffer << std::endl;
             buffer.clear();
@@ -478,42 +517,55 @@ std::vector<Token> Tokenizer(std::string tok){
         {
             tokens.push_back({.type = TokenType::div});
         }
-        
-        else if (c == ';'){
+
+        else if (c == ';')
+        {
             tokens.push_back({.type = TokenType::semi});
         }
-        else if (c == '('){
+        else if (c == '(')
+        {
             tokens.push_back({.type = TokenType::bracket_start});
         }
-        else if (c == ')'){
+        else if (c == ')')
+        {
             tokens.push_back({.type = TokenType::bracket_end});
         }
-        else if (c == '['){
+        else if (c == '[')
+        {
             tokens.push_back({.type = TokenType::eckig_start});
         }
-        else if (c == ']'){
+        else if (c == ']')
+        {
             tokens.push_back({.type = TokenType::ecking_end});
         }
-        else if (c == '{'){
+        else if (c == '{')
+        {
             tokens.push_back({.type = TokenType::squirly_start});
         }
-        else if (c == '}'){
+        else if (c == '}')
+        {
             tokens.push_back({.type = TokenType::squirly_end});
         }
-        else if (c == '<'){
+        else if (c == '<')
+        {
             tokens.push_back({.type = TokenType::less_than});
-            m=1;
+            m = 1;
         }
-        else if (c == '='){
-            if (tok.at(i+1) == '='){
+        else if (c == '=')
+        {
+            if (tok.at(i + 1) == '=')
+            {
                 tokens.push_back({.type = TokenType::equal});
                 i++;
-            }else{
+            }
+            else
+            {
                 tokens.push_back({.type = TokenType::asign});
             }
         }
-        
-        else if (std::isspace(c)){
+
+        else if (std::isspace(c))
+        {
             continue;
         }
     }
@@ -523,19 +575,20 @@ std::vector<Token> Tokenizer(std::string tok){
 std::stringstream stream;
 std::stringstream dataStream;
 
-std::string generate(node* n)
+std::string generate(node *n)
 {
     if (n == nullptr)
         return stream.str();
 
     /*
     if (n->type == TokenType::var_int) {
-        stream << "    " << n->val << ":" << 
+        stream << "    " << n->val << ":" <<
         stream << "    push rax\n";
         return stream.str();
     }*/
 
-    if (n->type == TokenType::fcall) {
+    if (n->type == TokenType::fcall)
+    {
         // 1. If you have arguments stored in Npvec, generate them here BEFORE the call:
         // for (auto* arg : n->Npvec) { generate(arg); }
 
@@ -548,45 +601,50 @@ std::string generate(node* n)
         return stream.str();
     }
 
-    if (n->type == TokenType::start) {
+    if (n->type == TokenType::start)
+    {
         stream << "_start:\n";
         generate(n->Npvec[0]);
         return stream.str();
     }
 
-    if (n->type == TokenType::int_lit) {
+    if (n->type == TokenType::int_lit)
+    {
         stream << "    mov rax, " << n->val << "\n";
         stream << "    push rax\n";
         return stream.str();
     }
 
-    if (n->type == TokenType::alias) {
+    if (n->type == TokenType::alias)
+    {
         stream << "    mov rbx, " << addr[n->val] << "\n";
         stream << "    mov rax, [rbx]\n";
         stream << "    push rax\n";
         return stream.str();
     }
 
-    if (n->type == TokenType::identifier){
+    if (n->type == TokenType::identifier)
+    {
 
         stream << "    mov rbx, " << n->Npvec[2]->val << "\n";
         stream << "    mov rax, " << n->Npvec[0]->val << "\n";
         stream << "    mov [rbx], rax" << "\n";
         return stream.str();
-        //generate(n->Npvec[0]);
-        //generate(n->Npvec[1]);
-        //generate(n->Npvec[2]);
+        // generate(n->Npvec[0]);
+        // generate(n->Npvec[1]);
+        // generate(n->Npvec[2]);
     }
 
+    if (n->type == TokenType::alias)
+    {
 
-    if (n->type == TokenType::alias) {
-        
         stream << "    mov rax, " << addr[n->val] << "\n";
         stream << "    push rax\n";
         return stream.str();
     }
 
-    if (n->type == TokenType::write) {
+    if (n->type == TokenType::write)
+    {
         generate(n->Npvec[0]);
 
         stream << "    pop rax\n";
@@ -595,9 +653,11 @@ std::string generate(node* n)
         return stream.str();
     }
 
-    if (n->type == TokenType::fun) {
+    if (n->type == TokenType::fun)
+    {
 
-        if (n->Npvec.empty() || n->Npvec.back() == nullptr) {
+        if (n->Npvec.empty() || n->Npvec.back() == nullptr)
+        {
             std::cerr << "Function has no body: " << n->val << "\n";
             return stream.str();
         }
@@ -616,9 +676,8 @@ std::string generate(node* n)
         return stream.str();
     }
 
-    
-
-    if (n->type == TokenType::_return) {
+    if (n->type == TokenType::_return)
+    {
         generate(n->Npvec[0]);
 
         stream << "    pop rax\n";
@@ -628,7 +687,8 @@ std::string generate(node* n)
 
         return stream.str();
     }
-    if (n->type == TokenType::ret) {
+    if (n->type == TokenType::ret)
+    {
         generate(n->Npvec[0]);
 
         stream << "    pop rax\n";
@@ -674,13 +734,13 @@ std::string generate(node* n)
     return stream.str();
 }
 
-std::string full_gen(node* n){
+std::string full_gen(node *n)
+{
 
-     
-
-    //stream << "global _start\n_start:\n";
+    // stream << "global _start\n_start:\n";
     std::stringstream Nstream;
-    for (int i=0; i<n->Npvec.size(); i++){
+    for (int i = 0; i < n->Npvec.size(); i++)
+    {
         Nstream << generate(n->Npvec[i]);
         stream.str("");
         stream.clear();
@@ -690,36 +750,63 @@ std::string full_gen(node* n){
 
 //////
 
-std::string token_type_name(TokenType type) {
-    switch (type) {
-        case TokenType::memory:      return "memory";
-        case TokenType::var_general: return "var";
-        case TokenType::identifier:  return "identifier";
-        case TokenType::_return:     return "return";
-        case TokenType::int_lit:     return "int";
-        case TokenType::semi:        return ";";
-        case TokenType::plus:        return "+";
-        case TokenType::minus:       return "-";
-        case TokenType::mul:         return "*";
-        case TokenType::div:         return "/";
-        case TokenType::eckig_start: return "[";
-        case TokenType::ecking_end:  return "]";
-        case TokenType::less_than:   return "<";
-        case TokenType::more_than:   return ">";
-        case TokenType::root:        return "root";
-        case TokenType::alias:       return "alias";
-        case TokenType::declaration:       return "declaration";
-        case TokenType::write:       return "write";
-        case TokenType::fun:         return "fun";
-        case TokenType::argumennt:  return "arg";
-        case TokenType::body:       return "body";
-        case TokenType::ret:       return "ret";
-        case TokenType::fcall:      return "fcall";
-        default:                     return "?";
+std::string token_type_name(TokenType type)
+{
+    switch (type)
+    {
+    case TokenType::memory:
+        return "memory";
+    case TokenType::var_general:
+        return "var";
+    case TokenType::identifier:
+        return "identifier";
+    case TokenType::_return:
+        return "return";
+    case TokenType::int_lit:
+        return "int";
+    case TokenType::semi:
+        return ";";
+    case TokenType::plus:
+        return "+";
+    case TokenType::minus:
+        return "-";
+    case TokenType::mul:
+        return "*";
+    case TokenType::div:
+        return "/";
+    case TokenType::eckig_start:
+        return "[";
+    case TokenType::ecking_end:
+        return "]";
+    case TokenType::less_than:
+        return "<";
+    case TokenType::more_than:
+        return ">";
+    case TokenType::root:
+        return "root";
+    case TokenType::alias:
+        return "alias";
+    case TokenType::declaration:
+        return "declaration";
+    case TokenType::write:
+        return "write";
+    case TokenType::fun:
+        return "fun";
+    case TokenType::argumennt:
+        return "arg";
+    case TokenType::body:
+        return "body";
+    case TokenType::ret:
+        return "ret";
+    case TokenType::fcall:
+        return "fcall";
+    default:
+        return "?";
     }
 }
 
-void print_tree(node* n, std::string prefix = "", bool last = true) {
+void print_tree(node *n, std::string prefix = "", bool last = true)
+{
     if (n == nullptr)
         return;
 
@@ -742,19 +829,19 @@ void print_tree(node* n, std::string prefix = "", bool last = true) {
     // Prefix used for children
     std::string child_prefix = prefix + (last ? "    " : "│   ");
 
-    for (size_t i = 0; i < n->Npvec.size(); ++i) {
+    for (size_t i = 0; i < n->Npvec.size(); ++i)
+    {
         print_tree(
             n->Npvec[i],
             child_prefix,
-            i == n->Npvec.size() - 1
-        );
+            i == n->Npvec.size() - 1);
     }
 }
 
-
 /////
 
-std::string finalGen(std::string text, std::string data){
+std::string finalGen(std::string text, std::string data)
+{
     std::stringstream final;
 
     final << "section .data\n";
@@ -764,79 +851,78 @@ std::string finalGen(std::string text, std::string data){
     return final.str();
 }
 
-
-
-int main(int argc, char* argv[]){
-    if (argc < 2){
+int main(int argc, char *argv[])
+{
+    if (argc < 2)
+    {
         std::cout << "no file specified" << std::endl;
     }
-    //std::cout << argv[1] << std::endl;
+    // std::cout << argv[1] << std::endl;
 
-
-    //read
-    // Create a text string, which is used to output the text file
+    // read
+    //  Create a text string, which is used to output the text file
     std::string myText;
     std::stringstream buf;
 
     // Read from the text file
     std::ifstream MyReadFile(argv[1]);
 
-    if (!MyReadFile.is_open()) {
+    if (!MyReadFile.is_open())
+    {
         std::cout << "could not open file: " << argv[1] << std::endl;
         return 1;
     }
 
     // Use a while loop together with the getline() function to read the file line by line
-    while (getline (MyReadFile, myText)) {
-    // Output the text from the file
-    //std::cout << myText;
-    if (!myText.empty() && myText.front() == '/') {
-        continue;
-    }
-    std::cout << myText;
-    buf << myText << " ";
+    while (getline(MyReadFile, myText))
+    {
+        // Output the text from the file
+        // std::cout << myText;
+        if (!myText.empty() && myText.front() == '/')
+        {
+            continue;
+        }
+        std::cout << myText;
+        buf << myText << " ";
     }
     std::cout << "\n";
 
     // Close the file
-    
-    
-    //std::cout << myText << std::endl;
 
-    
-    
+    // std::cout << myText << std::endl;
 
-  
+    auto tokens = Tokenizer(buf.str());
+    // auto hm = Simple_tree(tokens, pos, 0);
+    auto hm = full_ast(tokens);
 
-auto tokens = Tokenizer(buf.str());
-//auto hm = Simple_tree(tokens, pos, 0);
-auto hm = full_ast(tokens);
+    std::cout << "\nAST:\n";
+    print_tree(hm);
 
-std::cout << "\nAST:\n";
-print_tree(hm);
+    std::cout << '\n'
+              << std::endl;
+    for (int i = 0; i < tokens.size(); i++)
+    {
+        std::cout << "tok[" << i << "]: " << static_cast<int>(tokens.at(i).type) << '\n';
+    }
 
-std::cout << '\n' << std::endl;
-for (int i=0; i<tokens.size(); i++){
-    std::cout << "tok[" << i << "]: " << static_cast<int>(tokens.at(i).type) << '\n';
-}
+    if (hm == nullptr)
+    {
+        std::cerr << "parse error: AST is null\n";
+        return 1;
+    }
 
-if (hm == nullptr) {
-    std::cerr << "parse error: AST is null\n";
-    return 1;
-}
+    std::cout << "tokens = " << tokens.size() << '\n';
 
-std::cout << "tokens = " << tokens.size() << '\n';
+    {
+        std::ofstream uh("lol.asm");
 
-{
-    std::ofstream uh("lol.asm");
-    
-    //uh << generate(hm);
-    uh << "section .text\nglobal _start\nprint_number_fast:\n; === PROLOGUE ===\npush rbp\nmov rbp, rsp\n; Allocate 16 bytes on the stack for our string buffer\nsub rsp, 16\n; Track if the number was negative using a register we won't break (R8)\nmov r8, 0\n; Check if the number is negative\ncmp rax, 0\njge prepare_buffer       ; If it's positive, skip to buffer setup\nneg rax\nmov r8, 1\nprepare_buffer:\n; Start filling our buffer from the VERY END (right to left)\nmov byte [rbp - 1], 10\nmov rsi, rbp             ; Use RSI to track where our string starts\ndec rsi                  ; Move pointer to the newline\nmov rcx, 1               ; RCX counts total string length (starts\nconvert_loop:\nmov rdx, 0               ; Clear RDX for division\nmov rbx, 10\ndiv rbx                  ; RAX = quotient, RDX = remainder\nadd rdx, 48              ; Convert remainder digit to ASCII\ndec rsi                  ; Move our string pointer one byte to the left\nmov [rsi], dl            ; Store the ASCII character\ninc rcx                  ; Increase our character count\ncmp rax, 0               ; Are we out of digits?\njne convert_loop         ; If not, keep going\n; Check our flag: Do we need to slap a minus sign on the front?\ncmp r8, 1\njne do_syscall           ; If not negative, go straight to printing\ndec rsi                  ; Move pointer one more byte to the left\nmov byte [rsi], 45\ninc rcx\ndo_syscall:\nmov rax, 1\nmov rdi, 1\nmov rdx, rcx\nsyscall\n; === EPILOGUE ===\nmov rsp, rbp\npop rbp\nret\n";
-    uh << full_gen(hm);
-}
+        // uh << generate(hm);
+        uh << "section .text\nglobal _start\nprint_number_fast:\n; === PROLOGUE ===\npush rbp\nmov rbp, rsp\n; Allocate 16 bytes on the stack for our string buffer\nsub rsp, 16\n; Track if the number was negative using a register we won't break (R8)\nmov r8, 0\n; Check if the number is negative\ncmp rax, 0\njge prepare_buffer       ; If it's positive, skip to buffer setup\nneg rax\nmov r8, 1\nprepare_buffer:\n; Start filling our buffer from the VERY END (right to left)\nmov byte [rbp - 1], 10\nmov rsi, rbp             ; Use RSI to track where our string starts\ndec rsi                  ; Move pointer to the newline\nmov rcx, 1               ; RCX counts total string length (starts\nconvert_loop:\nmov rdx, 0               ; Clear RDX for division\nmov rbx, 10\ndiv rbx                  ; RAX = quotient, RDX = remainder\nadd rdx, 48              ; Convert remainder digit to ASCII\ndec rsi                  ; Move our string pointer one byte to the left\nmov [rsi], dl            ; Store the ASCII character\ninc rcx                  ; Increase our character count\ncmp rax, 0               ; Are we out of digits?\njne convert_loop         ; If not, keep going\n; Check our flag: Do we need to slap a minus sign on the front?\ncmp r8, 1\njne do_syscall           ; If not negative, go straight to printing\ndec rsi                  ; Move pointer one more byte to the left\nmov byte [rsi], 45\ninc rcx\ndo_syscall:\nmov rax, 1\nmov rdi, 1\nmov rdx, rcx\nsyscall\n; === EPILOGUE ===\nmov rsp, rbp\npop rbp\nret\n";
+        uh << full_gen(hm);
+    }
     MyReadFile.close();
     std::string filename = "lol.asm";
-    
+
     // Construct the command string
     std::string command = "nasm -felf64 " + filename;
 
