@@ -44,12 +44,34 @@ syscall
 mov rsp, rbp
 pop rbp
 ret
-yay:
+uwu:
     push rbp
     mov rbp, rsp
-    mov rax, 4
+    mov rax, 0
     push rax
-    mov rax, 1
+    mov rax, 0
+    push rax
+    pop rbx
+    pop rax
+    cmp rax, rbx
+    setg al
+    movzx rax, al
+    push rax
+    pop rax
+    cmp rax, 0
+    je .endif_0
+    mov rax, 9
+    push rax
+    pop rax
+    jmp .return
+.endif_0:
+.return:
+    mov rsp, rbp
+    pop rbp
+    ret
+    mov rax, 8
+    push rax
+    mov rax, 2
     push rax
     pop rbx
     pop rax
@@ -57,42 +79,16 @@ yay:
     push rax
     pop rax
     call print_number_fast
+    mov rax, 5
+    push rax
     pop rax
-    jmp .return
-.return:
-    mov rsp, rbp
-    pop rbp
-    ret
-no:
-    push rbp
-    mov rbp, rsp
-    mov rax, 3
+    call print_number_fast
+    mov rax, 0
     push rax
     pop rax
     jmp .return
-.return:
-    mov rsp, rbp
-    pop rbp
-    ret
-lol:
-    push rbp
-    mov rbp, rsp
-    mov rax, 2
-    push rax
-    call no
-    push rax
-    pop rbx
-    pop rax
-    imul rax, rbx
-    push rax
-    pop rax
-    jmp .return
-.return:
-    mov rsp, rbp
-    pop rbp
-    ret
 _start:
-    call lol
+    call uwu
     push rax
     pop rax
     call print_number_fast

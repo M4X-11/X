@@ -39,9 +39,7 @@ enum class TokenType
     assign,
     equal,
     not_equal,
-    ls,
     ls_or_eq,
-    moreThan,
     more_or_eq,
     write,
     fun,
@@ -54,11 +52,16 @@ enum class TokenType
     _else,
     declaration
 };
-
+/*
 int binding_power(TokenType t)
 {
     switch (t)
     {
+        case TokenType::bracket_end:    // ')'
+        case TokenType::semi:           // ';'
+        case TokenType::squirly_start:  // '{'
+        case TokenType::squirly_end:    // '}'
+            return 0;
     case TokenType::plus:
     case TokenType::minus:
         return 10;
@@ -70,7 +73,7 @@ int binding_power(TokenType t)
     default:
         return 0;
     }
-}
+}*/
 
 struct Token
 {
@@ -125,7 +128,7 @@ node *val_node_from_token(const Token &t)
         n->type = TokenType::memory;
     else
     {
-        // n->type = t.type;
+        n->type = t.type;
     }
     return n;
 }
@@ -180,9 +183,43 @@ node *parse_intVar()
     return NULL;
 }
 
+node *full_body(std::vector<Token> &tokens, int &pos);
+
+
+int binding_power(TokenType t)
+{
+    switch (t)
+    {
+        case TokenType::bracket_end:    // ')'
+        case TokenType::semi:           // ';'
+        case TokenType::squirly_start:  // '{'
+        case TokenType::squirly_end:    // '}'
+            return 0;
+
+        // Comparison operators must have a binding power > 0
+        case TokenType::less_than:
+        case TokenType::more_than:
+        case TokenType::equal:
+        case TokenType::not_equal:
+        case TokenType::ls_or_eq:
+        case TokenType::more_or_eq:
+            return 5;
+
+        case TokenType::plus:
+        case TokenType::minus:
+            return 10;
+
+        case TokenType::mul:
+        case TokenType::div:
+            return 20;
+
+        default:
+            return 0;
+    }
+}
+
 node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
 {
-
     if (pos >= tokens.size())
         return nullptr;
 
@@ -192,6 +229,15 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
         return nullptr;
     }
 
+    // Ignore stray closing or opening braces at the statement level
+    if (tokens[pos].type == TokenType::squirly_end || tokens[pos].type == TokenType::squirly_start)
+    {
+        pos++;
+        return nullptr;
+    }
+
+    // (The premature comparison operator guard block has been removed here)
+
     if (pos + 1 < tokens.size() &&
         tokens[pos].type == TokenType::identifier &&
         tokens[pos + 1].type == TokenType::bracket_start)
@@ -199,7 +245,7 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
         node *n = new node;
         n->type = TokenType::fcall;
         n->val = tokens[pos].value.value();
-        pos += 3; // consume identifier, bracket_start, and bracket_end (adjust if parsing args inside)
+        pos += 3; // consume identifier, bracket_start, and bracket_end
         return n;
     }
 
@@ -209,6 +255,42 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
         n->type = TokenType::alias;
         n->val = tokens[pos].value.value();
         pos++;
+        return n;
+    }
+
+    if (tokens[pos].type == TokenType::_if)
+    {
+        pos++; // consume 'if'
+
+        node* n = new node;
+        n->type = TokenType::_if;
+
+        // Consume '('
+        if (pos >= tokens.size() || tokens[pos].type != TokenType::bracket_start) {
+            throw std::runtime_error("Expected '(' after 'if'");
+        }
+        pos++;
+
+        // Parse condition (e.g., 2 > 0)
+        node* condition = Simple_tree(tokens, pos, 0);
+        n->Npvec.push_back(condition);
+
+        // Consume ')'
+        if (pos >= tokens.size() || tokens[pos].type != TokenType::bracket_end) {
+            throw std::runtime_error("Expected ')' after if condition");
+        }
+        pos++;
+
+        // Parse body { ... }
+        node* body = full_body(tokens, pos);
+        n->Npvec.push_back(body);
+
+        // Consume optional trailing semicolon (e.g., } ;)
+        if (pos < tokens.size() && tokens[pos].type == TokenType::semi)
+        {
+            pos++;
+        }
+
         return n;
     }
 
@@ -226,18 +308,11 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
             node *yo = new node;
             yo->type = TokenType::argumennt;
             yo->val = tokens[pos].value.value();
-            yo->type = TokenType::argumennt;
             n->Npvec.push_back(yo);
             pos++;
         }
 
-        node *expression = Simple_tree(tokens, pos, min_bp);
-        expression->type = TokenType::ret;
-
-        while (tokens[pos].type == TokenType::squirly_end)
-        {
-        }
-
+        node *expression = full_body(tokens, pos);
         n->Npvec.push_back(expression);
 
         return n;
@@ -245,64 +320,44 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
 
     if (pos >= tokens.size())
         return nullptr;
-    // Parse the first value
+
     if (tokens[pos].type == TokenType::_return)
     {
         pos++; // move past "return"
-
         node *expression = Simple_tree(tokens, pos, min_bp);
-
         node *n = new node;
         n->type = TokenType::_return;
-        // n->left = expression;
         n->Npvec.push_back(expression);
-        // n->right = nullptr;
-
         return n;
     }
 
     if (tokens[pos].type == TokenType::start)
     {
-        pos++; // move past "return"
-
+        pos++; // move past "start"
         node *expression = Simple_tree(tokens, pos, min_bp);
-
         node *n = new node;
         n->type = TokenType::start;
-        // n->left = expression;
         n->Npvec.push_back(expression);
-        // n->right = nullptr;
-
         return n;
     }
 
     if (tokens[pos].type == TokenType::ret)
     {
-        pos++; // move past "return"
-
+        pos++; // move past "ret"
         node *expression = Simple_tree(tokens, pos, min_bp);
-
         node *n = new node;
         n->type = TokenType::ret;
-        // n->left = expression;
         n->Npvec.push_back(expression);
-        // n->right = nullptr;
-
         return n;
     }
 
     if (tokens[pos].type == TokenType::write)
     {
-        pos++; // move past "return"
-
+        pos++; // move past "write"
         node *expression = Simple_tree(tokens, pos, min_bp);
-
         node *n = new node;
         n->type = TokenType::write;
-        // n->left = expression;
         n->Npvec.push_back(expression);
-        // n->right = nullptr;
-
         return n;
     }
 
@@ -317,7 +372,6 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
         return n;
     }
 
-    /////////
     if (tokens[pos].type == TokenType::var_general)
     {
         if (pos + 4 < tokens.size() &&
@@ -326,36 +380,29 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
             tokens[pos + 3].type == TokenType::memory &&
             tokens[pos + 4].type == TokenType::more_than)
         {
-
             pos++;
             addr[tokens[pos].value.value()] = tokens[pos + 2].value.value();
-            pos += 4; // Advance past the identifier and <memory>
-
+            pos += 4; 
             return parse_LowVar(tokens[pos - 4].value.value(), tokens);
         }
         else
         {
-            // printf("error: missing addr\n");
             std::cout << "error: missing addr" << std::endl;
             pos++;
             return NULL;
-            // pos++; // Just skip the identifier
         }
     }
-    //////////////////
 
     if (pos >= tokens.size())
         return nullptr;
+        
     node *left = val_node_from_token(tokens[pos]);
-
     pos++;
 
-    // Look at operators after it
+    // Look at operators after it using Pratt parsing
     while (pos < tokens.size())
     {
-
         TokenType op = tokens[pos].type;
-
         int op_bp = binding_power(op);
 
         // Operator isn't strong enough
@@ -386,6 +433,41 @@ node *full_ast(std::vector<Token> &tokens)
     return Rnode;
 }
 
+node *full_body(std::vector<Token> &tokens, int &pos)
+{
+    if (pos >= tokens.size() ||
+        tokens[pos].type != TokenType::squirly_start)
+    {
+        //throw std::runtime_error("Expected '{'");
+    }
+
+    node *body = new node;
+    body->type = TokenType::body;
+
+    pos++;
+
+    while (pos < tokens.size() &&
+           tokens[pos].type != TokenType::squirly_end)
+    {
+        int old_pos = pos;
+
+        node *statement = Simple_tree(tokens, pos, 0);
+
+        if (statement != nullptr)
+            body->Npvec.push_back(statement);
+
+        if (pos == old_pos)
+            throw std::runtime_error("Parser got stuck");
+    }
+
+    if (pos >= tokens.size())
+        //throw std::runtime_error("Expected '}'");
+
+    pos++;
+
+    return body;
+}
+
 int dec = 0;
 int m = 0;
 std::vector<Token> Tokenizer(std::string tok)
@@ -400,11 +482,7 @@ std::vector<Token> Tokenizer(std::string tok)
     {
         char c = tok.at(i);
 
-        if (c == '>')
-        {
-            tokens.push_back({.type = TokenType::more_than});
-            m = 0;
-        }
+        
 
         if (std::isalpha(c) || m)
         {
@@ -548,8 +626,31 @@ std::vector<Token> Tokenizer(std::string tok)
         }
         else if (c == '<')
         {
-            tokens.push_back({.type = TokenType::less_than});
-            m = 1;
+            if (tok.at(i + 1) == '=')
+            {
+                tokens.push_back({.type = TokenType::ls_or_eq});
+                i++;
+            }
+            else
+            {
+                tokens.push_back({.type = TokenType::less_than});
+            }
+            
+            m = 0;
+        }
+        else if (c == '>')
+        {
+            if (tok.at(i + 1) == '=')
+            {
+                tokens.push_back({.type = TokenType::more_or_eq});
+                i++;
+            }
+            else
+            {
+                tokens.push_back({.type = TokenType::more_than});
+            }
+            
+            m = 0;
         }
         else if (c == '=')
         {
@@ -580,24 +681,10 @@ std::string generate(node *n)
     if (n == nullptr)
         return stream.str();
 
-    /*
-    if (n->type == TokenType::var_int) {
-        stream << "    " << n->val << ":" <<
-        stream << "    push rax\n";
-        return stream.str();
-    }*/
-
     if (n->type == TokenType::fcall)
     {
-        // 1. If you have arguments stored in Npvec, generate them here BEFORE the call:
-        // for (auto* arg : n->Npvec) { generate(arg); }
-
-        // 2. Call the function
         stream << "    call " << n->val << "\n";
-
-        // 3. Push the return value (rax) onto the stack so stack-based consumers (like write) can pop it
         stream << "    push rax\n";
-
         return stream.str();
     }
 
@@ -625,37 +712,22 @@ std::string generate(node *n)
 
     if (n->type == TokenType::identifier)
     {
-
         stream << "    mov rbx, " << n->Npvec[2]->val << "\n";
         stream << "    mov rax, " << n->Npvec[0]->val << "\n";
         stream << "    mov [rbx], rax" << "\n";
-        return stream.str();
-        // generate(n->Npvec[0]);
-        // generate(n->Npvec[1]);
-        // generate(n->Npvec[2]);
-    }
-
-    if (n->type == TokenType::alias)
-    {
-
-        stream << "    mov rax, " << addr[n->val] << "\n";
-        stream << "    push rax\n";
         return stream.str();
     }
 
     if (n->type == TokenType::write)
     {
         generate(n->Npvec[0]);
-
         stream << "    pop rax\n";
         stream << "    call print_number_fast\n";
-
         return stream.str();
     }
 
     if (n->type == TokenType::fun)
     {
-
         if (n->Npvec.empty() || n->Npvec.back() == nullptr)
         {
             std::cerr << "Function has no body: " << n->val << "\n";
@@ -676,28 +748,58 @@ std::string generate(node *n)
         return stream.str();
     }
 
+    if (n->type == TokenType::_if)
+    {
+        static int label_counter = 0;
+        int current_label = label_counter++;
+
+        // 1. Generate condition expression (e.g., 2 > 0 -> pushes 1 or 0)
+        generate(n->Npvec[0]);
+
+        // 2. Pop condition result and check if 0 (false)
+        stream << "    pop rax\n";
+        stream << "    cmp rax, 0\n";
+        stream << "    je .endif_" << current_label << "\n";
+
+        // 3. Generate body if true
+        generate(n->Npvec[1]);
+
+        // 4. End label
+        stream << ".endif_" << current_label << ":\n";
+
+        return stream.str();
+    }
+
     if (n->type == TokenType::_return)
     {
         generate(n->Npvec[0]);
-
         stream << "    pop rax\n";
         stream << "    mov rdi, rax\n";
         stream << "    mov rax, 60\n";
         stream << "    syscall\n";
-
         return stream.str();
     }
+
     if (n->type == TokenType::ret)
     {
         generate(n->Npvec[0]);
-
         stream << "    pop rax\n";
         stream << "    jmp .return\n";
-
         return stream.str();
     }
 
-    // binary operators
+    if (n->type == TokenType::body)
+    {
+        for (node* statement : n->Npvec)
+        {
+            std::cout << "body";
+            if (statement != nullptr)
+                generate(statement);
+        }
+        return stream.str();
+    }
+
+    // Binary Operators (Math & Comparisons)
     generate(n->Npvec[0]);
     generate(n->Npvec[1]);
 
@@ -724,6 +826,28 @@ std::string generate(node *n)
     case TokenType::div:
         stream << "    cqo\n";
         stream << "    idiv rbx\n";
+        stream << "    push rax\n";
+        break;
+
+    // Comparison Operators
+    case TokenType::more_than:
+        stream << "    cmp rax, rbx\n";
+        stream << "    setg al\n";
+        stream << "    movzx rax, al\n";
+        stream << "    push rax\n";
+        break;
+
+    case TokenType::less_than:
+        stream << "    cmp rax, rbx\n";
+        stream << "    setl al\n";
+        stream << "    movzx rax, al\n";
+        stream << "    push rax\n";
+        break;
+
+    case TokenType::equal:
+        stream << "    cmp rax, rbx\n";
+        stream << "    sete al\n";
+        stream << "    movzx rax, al\n";
         stream << "    push rax\n";
         break;
 
@@ -754,16 +878,24 @@ std::string token_type_name(TokenType type)
 {
     switch (type)
     {
+    case TokenType::uh:
+        return "uh";
     case TokenType::memory:
         return "memory";
     case TokenType::var_general:
         return "var";
+    case TokenType::var_int:
+        return "int_keyword";
     case TokenType::identifier:
         return "identifier";
     case TokenType::_return:
         return "return";
     case TokenType::int_lit:
         return "int";
+    case TokenType::asign:
+        return "=";
+    case TokenType::assign:
+        return "assign";
     case TokenType::semi:
         return ";";
     case TokenType::plus:
@@ -778,10 +910,26 @@ std::string token_type_name(TokenType type)
         return "[";
     case TokenType::ecking_end:
         return "]";
+    case TokenType::squirly_start:
+        return "{";
+    case TokenType::squirly_end:
+        return "}";
+    case TokenType::bracket_start:
+        return "(";
+    case TokenType::bracket_end:
+        return ")";
     case TokenType::less_than:
         return "<";
     case TokenType::more_than:
         return ">";
+    case TokenType::equal:
+        return "==";
+    case TokenType::not_equal:
+        return "!=";
+    case TokenType::ls_or_eq:
+        return "<=";
+    case TokenType::more_or_eq:
+        return ">=";
     case TokenType::root:
         return "root";
     case TokenType::alias:
@@ -800,6 +948,12 @@ std::string token_type_name(TokenType type)
         return "ret";
     case TokenType::fcall:
         return "fcall";
+    case TokenType::_if:
+        return "if";
+    case TokenType::_else:
+        return "else";
+    case TokenType::start:
+        return "start";
     default:
         return "?";
     }
