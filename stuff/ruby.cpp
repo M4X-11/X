@@ -123,7 +123,7 @@ node *val_node_from_token(const Token &t)
     if (t.type == TokenType::int_lit)
         n->type = TokenType::int_lit;
     else if (t.type == TokenType::identifier)
-        n->type = TokenType::identifier;
+        n->type = TokenType::alias;
     else if (t.type == TokenType::memory)
         n->type = TokenType::memory;
     else
@@ -252,15 +252,17 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
             node *yo = new node;
             yo->type = TokenType::argumennt;
             //yo->val = tokens[pos].value.value();
-            //yo->val = Simple_tree(tokens, pos, 0);
+            node* expres = Simple_tree(tokens, pos, 0);
+            yo->Npvec.push_back(expres);
             n->Npvec.push_back(yo);
-            pos++;
+            //pos++;
         }
 
         pos++; // consume identifier, bracket_start, and bracket_end
         return n;
     }
 
+    /*
     if (tokens[pos].type == TokenType::identifier)
     {
         node *n = new node;
@@ -268,7 +270,7 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
         n->val = tokens[pos].value.value();
         pos++;
         return n;
-    }
+    }*/
 
     if (tokens[pos].type == TokenType::_if)
     {
@@ -704,13 +706,15 @@ std::string generate(node *n)
 
     if (n->type == TokenType::fcall)
     {
-        for (node* statement : n->Npvec)
+        for (node* arg_node : n->Npvec)
         {
-            std::cout << "arg";
-            if (statement != nullptr)
-                //generate(statement);
-                stream << "    mov rdi, " << statement->val << "\n";
+            if (arg_node != nullptr && !arg_node->Npvec.empty())
+            {
+                // Generate the expression code (pushes result to stack, or moves to register)
+                generate(arg_node->Npvec[0]);
+            }
         }
+        stream << "    pop rdi\n"; // Get the argument result into rdi
         stream << "    call " << n->val << "\n";
         stream << "    push rax\n";
         return stream.str();

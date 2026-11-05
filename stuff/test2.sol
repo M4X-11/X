@@ -9,12 +9,12 @@ fun yo {write 1; write 2; ret 3; write 6};
 
 fun fact n {
     if ( 1==n ){ret 1;}
-    ret 3*fact(1);
+    ret n*fact(n-1);
 }
 
 start:
 /write uwu(3);
-write fact(5);
+write fact(7);
 /write yo();
 return 0;
 

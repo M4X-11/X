@@ -44,78 +44,6 @@ syscall
 mov rsp, rbp
 pop rbp
 ret
-uwu:
-    push rbp
-    mov rbp, rsp
-    mov rax, 10
-    push rax
-    mov rax, rdi
-    push rax
-    pop rbx
-    pop rax
-    cmp rax, rbx
-    setg al
-    movzx rax, al
-    push rax
-    pop rax
-    cmp rax, 0
-    je .endif_0
-    mov rax, 9
-    push rax
-    pop rax
-    jmp .return
-.endif_0:
-    mov rax, 2
-    push rax
-    mov rax, 4
-    push rax
-    pop rbx
-    pop rax
-    imul rax, rbx
-    push rax
-    mov rax, 2
-    push rax
-    pop rbx
-    pop rax
-    add rax, rbx
-    push rax
-    pop rax
-    call print_number_fast
-    mov rax, 5
-    push rax
-    pop rax
-    call print_number_fast
-    mov rax, 0
-    push rax
-    pop rax
-    jmp .return
-.return:
-    mov rsp, rbp
-    pop rbp
-    ret
-yo:
-    push rbp
-    mov rbp, rsp
-    mov rax, 1
-    push rax
-    pop rax
-    call print_number_fast
-    mov rax, 2
-    push rax
-    pop rax
-    call print_number_fast
-    mov rax, 3
-    push rax
-    pop rax
-    jmp .return
-    mov rax, 6
-    push rax
-    pop rax
-    call print_number_fast
-.return:
-    mov rsp, rbp
-    pop rbp
-    ret
 fact:
     push rbp
     mov rbp, rsp
@@ -131,15 +59,23 @@ fact:
     push rax
     pop rax
     cmp rax, 0
-    je .endif_1
+    je .endif_0
     mov rax, 1
     push rax
     pop rax
     jmp .return
-.endif_1:
-    mov rax, 3
+.endif_0:
+    mov rax, rdi
     push rax
-    mov rdi, 1
+    mov rax, rdi
+    push rax
+    mov rax, 1
+    push rax
+    pop rbx
+    pop rax
+    sub rax, rbx
+    push rax
+    pop rdi
     call fact
     push rax
     pop rbx
@@ -153,7 +89,9 @@ fact:
     pop rbp
     ret
 _start:
-    mov rdi, 5
+    mov rax, 5
+    push rax
+    pop rdi
     call fact
     push rax
     pop rax
