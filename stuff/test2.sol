@@ -1,13 +1,21 @@
 
-fun uwu {
-    if ( 0>0 ) {ret 9;}
-    write 8+2;
+fun uwu n{
+    if ( 10 > n ) {ret 9;};
+    write 2*4+2;
     write 5;
     ret 0;
 }
+fun yo {write 1; write 2; ret 3; write 6};
+
+fun fact n {
+    if ( 1==n ){ret 1;}
+    ret 3*fact(1);
+}
 
 start:
-write uwu();
+/write uwu(3);
+write fact(5);
+/write yo();
 return 0;
 
 

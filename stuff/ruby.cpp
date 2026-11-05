@@ -245,7 +245,19 @@ node *Simple_tree(std::vector<Token> &tokens, int &pos, int min_bp)
         node *n = new node;
         n->type = TokenType::fcall;
         n->val = tokens[pos].value.value();
-        pos += 3; // consume identifier, bracket_start, and bracket_end
+        pos+=2;
+
+        while (tokens[pos].type != TokenType::bracket_end)
+        {
+            node *yo = new node;
+            yo->type = TokenType::argumennt;
+            //yo->val = tokens[pos].value.value();
+            //yo->val = Simple_tree(tokens, pos, 0);
+            n->Npvec.push_back(yo);
+            pos++;
+        }
+
+        pos++; // consume identifier, bracket_start, and bracket_end
         return n;
     }
 
@@ -433,43 +445,51 @@ node *full_ast(std::vector<Token> &tokens)
     return Rnode;
 }
 
-node *full_body(std::vector<Token> &tokens, int &pos)
+node* full_body(std::vector<Token>& tokens, int& pos)
 {
     if (pos >= tokens.size() ||
         tokens[pos].type != TokenType::squirly_start)
     {
-        //throw std::runtime_error("Expected '{'");
+        throw std::runtime_error("Expected '{'");
     }
 
-    node *body = new node;
+    node* body = new node;
     body->type = TokenType::body;
 
-    pos++;
+    pos++; // Consume {
 
     while (pos < tokens.size() &&
            tokens[pos].type != TokenType::squirly_end)
     {
+        std::cout << "BODY before: " << pos
+                  << " token: " << static_cast<int>(tokens[pos].type)
+                  << '\n';
+
         int old_pos = pos;
 
-        node *statement = Simple_tree(tokens, pos, 0);
+        node* statement = Simple_tree(tokens, pos, 0);
 
         if (statement != nullptr)
             body->Npvec.push_back(statement);
+
+        std::cout << "BODY after: " << pos << '\n';
 
         if (pos == old_pos)
             throw std::runtime_error("Parser got stuck");
     }
 
     if (pos >= tokens.size())
-        //throw std::runtime_error("Expected '}'");
+        throw std::runtime_error("Expected '}'");
 
-    pos++;
+    pos++; // Consume }
 
     return body;
 }
 
 int dec = 0;
 int m = 0;
+
+int neg=0;
 std::vector<Token> Tokenizer(std::string tok)
 {
     std::vector<Token> tokens;
@@ -488,6 +508,7 @@ std::vector<Token> Tokenizer(std::string tok)
         {
             buffer.push_back(c);
             i++;
+            neg =0;
 
             while (i < tok.size() && std::isalnum(tok.at(i)))
             {
@@ -683,6 +704,13 @@ std::string generate(node *n)
 
     if (n->type == TokenType::fcall)
     {
+        for (node* statement : n->Npvec)
+        {
+            std::cout << "arg";
+            if (statement != nullptr)
+                //generate(statement);
+                stream << "    mov rdi, " << statement->val << "\n";
+        }
         stream << "    call " << n->val << "\n";
         stream << "    push rax\n";
         return stream.str();
@@ -704,11 +732,19 @@ std::string generate(node *n)
 
     if (n->type == TokenType::alias)
     {
+        stream << "    mov rax, rdi" << "\n";
+        stream << "    push rax\n";
+        return stream.str();
+    }
+
+    /*
+    if (n->type == TokenType::alias)
+    {
         stream << "    mov rbx, " << addr[n->val] << "\n";
         stream << "    mov rax, [rbx]\n";
         stream << "    push rax\n";
         return stream.str();
-    }
+    }*/
 
     if (n->type == TokenType::identifier)
     {
@@ -737,6 +773,14 @@ std::string generate(node *n)
         stream << n->val << ":\n";
         stream << "    push rbp\n";
         stream << "    mov rbp, rsp\n";
+
+        int argnum=0;
+        for (node* statement : n->Npvec)
+        {
+            if (statement->type == TokenType::body){break;}
+            std::cout << "arg";
+            argnum++;
+        }
 
         generate(n->Npvec.back());
 
